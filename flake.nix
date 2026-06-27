@@ -14,13 +14,17 @@
     overlays.default = openclaw-nix.overlays.default;
 
     nixosModules = {
-      default = { ... }: {
+      default = { inputs, lib, ... }: {
         imports = [
-          openclaw-nix.nixosModules.default
+          inputs.openclaw-nix.nixosModules.default
           self.nixosModules.nvidia-k80
           self.nixosModules.ollama
           self.nixosModules.openclaw
           self.nixosModules.reverse-proxy
+        ];
+
+        nixpkgs.overlays = lib.mkAfter [
+          inputs.openclaw-nix.overlays.default
         ];
       };
 
