@@ -13,20 +13,24 @@
   outputs = { self, nixpkgs, openclaw-nix, ... }@inputs: {
     overlays.default = openclaw-nix.overlays.default;
 
-    nixosModules = {
-      default = { inputs, lib, ... }: {
-        imports = [
-          inputs.openclaw-nix.nixosModules.default
-          self.nixosModules.nvidia-k80
-          self.nixosModules.ollama
-          self.nixosModules.openclaw
-          self.nixosModules.reverse-proxy
-        ];
+    nixosModules =
+      let
+        inherit openclaw-nix;
+      in
+      {
+        default = { lib, ... }: {
+          imports = [
+            openclaw-nix.nixosModules.default
+            self.nixosModules.nvidia-k80
+            self.nixosModules.ollama
+            self.nixosModules.openclaw
+            self.nixosModules.reverse-proxy
+          ];
 
-        nixpkgs.overlays = lib.mkAfter [
-          inputs.openclaw-nix.overlays.default
-        ];
-      };
+          nixpkgs.overlays = lib.mkAfter [
+            openclaw-nix.overlays.default
+          ];
+        };
 
       nvidia-k80 = ./modules/nvidia-k80.nix;
       ollama = ./modules/ollama.nix;
