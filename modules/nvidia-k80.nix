@@ -30,8 +30,8 @@ in
     nixpkgs.config.allowUnfree = true;
     nixpkgs.config.nvidia.acceptLicense = true;
 
-    # legacy_470 does not track linuxPackages_latest on all kernels; pin LTS.
-    boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_6_6;
+    # legacy_470 does not build against linuxPackages_latest; force LTS kernel.
+    boot.kernelPackages = lib.mkForce pkgs.linuxPackages_6_6;
 
     hardware.graphics = {
       enable = true;
