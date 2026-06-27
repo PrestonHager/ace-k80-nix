@@ -43,8 +43,10 @@ in
       enable = true;
       host = cfg.host;
       package = if useCuda then pkgs.ollama-cuda else pkgs.ollama-cpu;
-      acceleration = if useCuda then "cuda" else false;
-      environmentVariables = lib.mkIf useCuda {
+    };
+
+    systemd.services.ollama = lib.mkIf useCuda {
+      environment = {
         LD_LIBRARY_PATH = "/run/opengl-driver/lib";
         CUDA_VISIBLE_DEVICES = "0";
       };
