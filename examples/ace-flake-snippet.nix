@@ -1,0 +1,111 @@
+{
+  description = "Nixos config flake";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    tree-sitter-parsers = {
+      url = "github:ratson/nix-treesitter";
+    };
+
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Our sops repository so we can host secrets seperately
+    nix-secrets = {
+      url = "git+ssh://git@github.com/PrestonHager/nixos-secrets.git";
+    };
+
+    # Tesla K80 / Ollama / OpenClaw stack for Ace
+    ace-k80-nix = {
+      url = "github:PrestonHager/ace-k80-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Our pterodactyl-wings binary for any node branches
+    pterodactyl-wings = {
+      url = "github:PrestonHager/pterodactyl-wings-nix-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # PrestonHager Blueprint fork (test.panel only; tracked for rev pinning)
+    blueprint-framework = {
+      url = "github:PrestonHager/framework/feat/prestonhager-plugin-manager";
+      flake = false;
+    };
+  };
+
+  outputs = { self, nixpkgs, tree-sitter-parsers, ... }@inputs:
+    let
+      system = "x86_64-linux";
+      docsSite = import ./docs/site/default.nix {
+        lib = nixpkgs.lib;
+        pkgs = nixpkgs.legacyPackages.${system};
+        siteSrc = ./docs/site;
+        includesSrc = ./docs;
+      };
+    in {
+    packages.${system} = {
+      docs = docsSite;
+      default = docsSite;
+    };
+
+    devShells.${system}.docs-dev = nixpkgs.legacyPackages.${system}.mkShell {
+      packages = [ nixpkgs.legacyPackages.${system}.mdbook ];
+    };
+
+    nixosConfigurations = let
+        defaultModules = [
+          inputs.home-manager.nixosModules.default
+          inputs.sops-nix.nixosModules.sops
+        ];
+        # Define all node names and system types for node-like hosts
+        nodes = {
+          crux = ./hosts/pterodactyl-nodes;
+          nova = ./hosts/pterodactyl-nodes;
+        };
+      in {
+      # Different configuration are selected by adding #config after the nixos
+      # directory. For example `nixos-rebuild switch --flake /etc/nixos#default`
+      # By default it uses the current host name
+      ph-nixos = nixpkgs.lib.nixosSystem {
+        specialArgs = {inherit inputs;};
+        modules = defaultModules ++ [
+          ./hosts/ph-nixos
+        ];
+      };
+      ace = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs docsSite; };
+        modules = defaultModules ++ [
+          ./hosts/ace
+        ];
+      };
+      #crux = nixpkgs.lib.nixosSystem {
+      #  specialArgs = {inherit inputs;};
+      #  modules = defaultModules ++ [
+      #    ./hosts/pterodactyl-nodes
+      #    {
+      #      networking.hostName = "crux";
+      #    }
+      #  ];
+      #};
+    } // builtins.mapAttrs (name: value: nixpkgs.lib.nixosSystem {
+      specialArgs = {inherit inputs;};
+      modules = defaultModules ++ [
+        value
+        {
+          networking.hostName = "${name}";
+        }
+      ]
+      # Import a host specific configuration if the file exists
+      ++ nixpkgs.lib.optional (builtins.pathExists (./hosts/${name})) (import ./hosts/${name});
+    }) nodes;
+  };
+}

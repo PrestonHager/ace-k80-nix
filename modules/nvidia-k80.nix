@@ -30,13 +30,15 @@ in
     nixpkgs.config.allowUnfree = true;
     nixpkgs.config.nvidia.acceptLicense = true;
 
-    # Expose libcuda.so and GL/Vulkan userspace under /run/opengl-driver
+    # legacy_470 does not track linuxPackages_latest on all kernels; pin LTS.
+    boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_6_6;
+
     hardware.graphics = {
       enable = true;
       enable32Bit = lib.mkIf pkgs.stdenv.hostPlatform.isx86_64 true;
     };
 
-    services.xserver.videoDrivers = lib.mkForce [ "nvidia" ];
+    services.xserver.videoDrivers = [ "nvidia" ];
 
     hardware.nvidia = {
       modesetting.enable = true;
@@ -56,14 +58,8 @@ in
     environment.systemPackages = with pkgs; [
       pciutils
       nvidia-settings
+    ] ++ lib.optionals cfg.enableContainerToolkit [
+      nvidia-container-toolkit
     ];
-
-  } // lib.optionalAttrs cfg.enableContainerToolkit {
-    hardware.nvidia-container-toolkit.enable = lib.mkDefault true;
-  } // {
-    environment.etc."nvidia-k80-powerd".text = ''
-      # Applied after GPU install via nvidia-settings or nvidia-smi -pm 1
-      # PowerMizer: ${cfg.powerMizer}
-    '';
   };
 }
