@@ -57,7 +57,6 @@ in
 
     environment.systemPackages = with pkgs; [
       pciutils
-      nvidia-settings
     ] ++ lib.optionals cfg.enableContainerToolkit [
       nvidia-container-toolkit
     ];
